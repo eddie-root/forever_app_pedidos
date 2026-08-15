@@ -1,114 +1,110 @@
-import Client from '../models/Client.js'
+import prisma from '../prisma/client.js';
 
-// Create Client : /api/client/create
+// FUNÇÕES DE FORMATAÇÃO 
+function formatCNPJ(cnpj) {
+  if (!cnpj) return "";
+  const pure = cnpj.replace(/\D/g, "");
+  if (pure.length !== 14) return cnpj;
+  return pure.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
 
-export const addClient = async (req, res) => {
-    console.log(req.body)
-    try {
-        const {
-            rSocial,
-            nFantasia,
-            cnpj,
-            inscEstadual,
-            suframa,
-            dataDeFundaçao,
-            address,
-            bairro,
-            city,
-            county,
-            cep,
-            contact,
-            cellPhone,
-            phone,
-            email,
-            emailNfe,
-            contactFinan,
-            phoneFinan,
-            emailFinan
-        } = req.body;
+function formatCEP(cep) {
+  if (!cep) return "";
+  const pure = cep.replace(/\D/g, "");
+  if (pure.length !== 8) return cep;
+  return pure.replace(/^(\d{5})(\d{3})$/, "$1-$2");
+}
 
-        // Validate required fields
-        if (!rSocial || !nFantasia || !cnpj || !inscEstadual || !address || !bairro || !city || !county || !cep) {
-            return res.status(400).json({
-                success: false,
-                message: "Missing required fields"
-            });
-        }
+function formatPhone(phone) {
+  if (!phone) return "";
+  const pure = phone.replace(/\D/g, "");
+  if (pure.length === 11) {
+    return pure.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
+  }
+  if (pure.length === 10) {
+    return pure.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
+  }
+  return phone;
+}
 
-        // Check if client with same CNPJ already exists
-        const existingClient = await Client.findOne({ cnpj });
-        if (existingClient) {
-            return res.status(400).json({
-                success: false,
-                message: "Client with this CNPJ already exists"
-            });
-        }
+// TRATAR DADOS DO CLIENTE
+const prepareClientData = (data) => {
+  // Apenas campos permitidos no esquema
+  const allowedFields = [
+    'rSocial', 'nFantasia', 'cnpj', 'inscEstadual', 'suframa', 
+    'dateFoundation', 'address', 'bairro', 'city', 'county', 
+    'cep', 'contact', 'cellPhone', 'phone', 'email', 'emailNfe', 
+    'contactFinan', 'phoneFinan', 'emailFinan'
+  ];
 
-        const client = await Client.create({
-            rSocial,
-            nFantasia,
-            cnpj,
-            inscEstadual,
-            suframa,
-            dataDeFundaçao,
-            address,
-            bairro,
-            city,
-            county,
-            cep,
-            contact,
-            cellPhone,
-            phone,
-            email,
-            emailNfe,
-            contactFinan,
-            phoneFinan,
-            emailFinan
-        });
-
-        res.status(201).json({
-            success: true,
-            message: "Client added successfully",
-            client
-        });
-
-    } catch (error) {
-        console.error("Error adding client:", error);
-        res.status(500).json({
-            success: false,
-            message: error.message || "Error adding client"
-        });
+  const prepared = {};
+  
+  allowedFields.forEach(field => {
+    if (data[field] !== undefined) {
+      prepared[field] = data[field];
     }
+  });
+
+  // Mapeia dataDeFundaçao para dateFoundation se existir no input mas não no esquema
+  if (data.dataDeFundaçao) {
+    prepared.dateFoundation = data.dataDeFundaçao;
+  }
+
+  if (prepared.cnpj) prepared.cnpj = formatCNPJ(prepared.cnpj);
+  if (prepared.cep) prepared.cep = formatCEP(prepared.cep);
+  if (prepared.phone) prepared.phone = formatPhone(prepared.phone);
+  if (prepared.cellPhone) prepared.cellPhone = formatPhone(prepared.cellPhone);
+  if (prepared.phoneFinan) prepared.phoneFinan = formatPhone(prepared.phoneFinan);
+  
+  return prepared;
 };
 
-// Get All Clients : /api/client/getAll
+// CRIAR CLIENTE (POST)
+export const createClient = async (req, res) => {
+  try {
+    const data = prepareClientData(req.body);
+    const client = await prisma.clientPedido.create({
+      data,
+    });
+    res.status(201).json({ success: true, client });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Erro ao criar cliente: " + error.message });
+  }
+}; 
 
-export const getAllClients = async (req, res) => {
+// LISTAR TODOS OS CLIENTES ( GET )
+export const getClients = async (req, res) => {
     try {
-        const clients = await Client.find().sort({ createdAt: -1 });
+        const clients = await prisma.clientPedido.findMany({
+            orderBy: { nFantasia: 'asc' }
+        });
         res.json({
             success: true,
             clients
         });
     } catch (error) {
-        console.error("Error getting clients:", error);
         res.status(500).json({
             success: false,
-            message: error.message || "Error getting clients"
+            message: "Erro ao listar clientes: " + error.message
         });
     }
 };
 
-// Get Client by ID : /api/client/getClient/:id
-export const getClient = async (req, res) => {
+// BUSCAR CLIENTE POR ID ( GET )
+export const getClientById = async (req, res) => {
     try {
-        const client = await Client.findById(req.params.id);
+        const { id } = req.params;
+        const client = await prisma.clientPedido.findUnique({
+            where: { id: Number(id) },
+        });
+
         if (!client) {
             return res.status(404).json({
                 success: false,
-                message: "Client not found"
+                message: "Cliente não encontrado"
             });
         }
+
         res.json({
             success: true,
             client
@@ -117,58 +113,48 @@ export const getClient = async (req, res) => {
         console.error("Error getting client:", error);
         res.status(500).json({
             success: false,
-            message: error.message || "Error getting client"
+            message: "Erro ao buscar cliente: " + error.message
         });
     }
 };
 
-
-// Delete Client : /api/client/deleteClient/:id
-
-export const deleteClient = async (req, res) => {
+// ATUALIZAR CLIENTE ( PUT )
+export const updateClient = async (req, res) => {
     try {
-        const client = await Client.findByIdAndDelete(req.params.id);
-        if (!client) {
-            return res.status(404).json({
-                success: false,
-                message: "Client not found"
-            });
-        }
+        const { id } = req.params;
+        const data = prepareClientData(req.body);
+        const updatedClient = await prisma.clientPedido.update({
+            where: { id: Number(id) },
+            data,
+        });
         res.json({
             success: true,
-            message: "Client deleted successfully"
+            client: updatedClient
         });
     } catch (error) {
         console.error("Error deleting client:", error);
         res.status(500).json({
             success: false,
-            message: error.message || "Error deleting client"
+            message: "Erro ao atualizar cliente: " + error.message 
         });
     }
 };
 
-// Update Client : /api/client/updateClient/:id
-
-export const updateClient = async (req, res) => {
+// DELETAR CLIENTE 
+export const deleteClient = async (req, res) => {
     try {
-        const client = await Client.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-        if (!client) {
-            return res.status(404).json({
-                success: false,
-                message: "Client not found"
-            });
-        }
+        const { id } = req.params;
+        await prisma.clientPedido.delete({
+            where: { id: Number(id) },
+        });
         res.json({
             success: true,
-            message: "Client updated successfully",
-            client
+            message: "Cliente deletado com sucesso"
         });
     } catch (error) {
-        console.error("Error updating client:", error);
         res.status(500).json({
             success: false,
-            message: error.message || "Error updating client"
+            message: error.message || "Erro ao deletar cliente"
         });
     }
 };
-

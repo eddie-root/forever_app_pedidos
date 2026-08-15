@@ -1,180 +1,121 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import PropTypes from "prop-types";
-import toast from "react-hot-toast";
-import ProductContext from "./ProductContext";
-import GlobalContext from "./GlobalContext";
-import api from "../utils/api";
-import { calculateItemDiscount } from "../utils/discount";
+import React, { createContext, useContext, useEffect, useState } from 'react'
+import calculateItemDiscount from '../utils/discount';
 
-const CartContext = createContext(null);
+const CartContext = createContext();
 
-export const CartContextProvider = ({ children }) => {
+export const CartProvider = ({ children }) => {
 
-    const { products } = useContext(ProductContext);
-    const { currency, navigate } = useContext(GlobalContext);
+  const [cartItems, setCartItems] = useState(()=> {
+    const stored = localStorage.getItem("cartItems");
+    return stored ? JSON.parse(stored) :  [];
+  });
 
-    const [cartItems, setCartItems] = useState([]);
-    const [itemDiscounts, setItemDiscounts] = useState({});
-    const [itemOptions, setItemOptions] = useState({});
+  useEffect(()=> {
+    localStorage.setItem("cartItems", JSON.stringify(cartItems));
+  }, [cartItems]);
 
-    const handleDiscountChange = (itemId, assento, type, value) => {
-        const key = `${itemId}-${assento}`;
-        setItemDiscounts((prev) => ({
-          ...prev,
-          [key]: {
-            ...prev[key],
-            [type]: Number(value) || 0,
-          },
-        }));
-      };
-      
-      const updateItemOptions = (itemId, assento, options) => {
-        const key = `${itemId}-${assento}`;
-        setItemOptions(prev => ({
-            ...prev,
-            [key]: { ...prev[key], ...options }
-        }));
-    };
-
-    const addToCart = (itemId, quantity, price, assento, priceGroupName) => {
-        const product = products.find(p => p._id === itemId);
-        if (!product) return;
-
-        setCartItems(prevItems => {
-            const itemIndex = prevItems.findIndex(item => item.product._id === itemId && item.assento === assento);
-            if (itemIndex > -1) {
-                const newItems = [...prevItems];
-                newItems[itemIndex].quantity += quantity;
-                return newItems;
-            } else {
-                const newItem = {
-                    product,
-                    quantity,
-                    price,
-                    assento,
-                    priceGroupName,
-                };
-                return [...prevItems, newItem];
-            }
-        });
-        toast.success(`${product.name} adicionado ao carrinho.`);
-    };
-
-    const removeFromCart = (itemId, assento) => {
-        setCartItems(prevItems => prevItems.filter(item => !(item.product._id === itemId && item.assento === assento)));
-    };
-
-    const updateQuantity = (itemId, assento, quantity) => {
-        setCartItems(prevItems => {
-            const itemIndex = prevItems.findIndex(item => item.product._id === itemId && item.assento === assento);
-            if (itemIndex > -1) {
-                const newItems = [...prevItems];
-                newItems[itemIndex].quantity = quantity;
-                return newItems;
-            }
-            return prevItems;
-        });
-    };
-
-    const getCartCount = () => {
-        return cartItems.reduce((total, item) => total + item.quantity, 0);
-    };
-
-    const getCartAmount = () => {
-        return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
-    };
-
-    const getDiscountedTotal = () => {
-        return cartItems.reduce((total, item) => {
-          if (!item.product) return total;
-          const key = `${item.product._id}-${item.assento}`;
-          const discounts = itemDiscounts[key] || {};
-          const discountedPrice = calculateItemDiscount(
-            item.price * item.quantity,
-            discounts.discount1,
-            discounts.discount2,
-            discounts.discount3,
-            discounts.discount4
-          );
-          return total + discountedPrice;
-        }, 0);
-      };
-
-    const clearCart = () => {
-        setCartItems([]);
-        setItemDiscounts({}); // Also clear discounts
-    };
-
-    const createPreOrder = async (orderData) => {
-        try {
-            const { data } = await api.post("/api/orders/pre-order", orderData);
-            if (data.success) {
-                toast.success("Pré-pedido criado com sucesso!");
-                clearCart();
-                navigate("/my-orders");
-            } else {
-                toast.error(data.message);
-            }
-        } catch (error) {
-            toast.error(error.response?.data?.message || "Erro ao criar o pré-pedido.");
-        }
-    };
-
-    useEffect(() => {
-        const storedCart = localStorage.getItem('cartItems');
-        const storedDiscounts = localStorage.getItem('itemDiscounts');
-        const storedOptions = localStorage.getItem('itemOptions');
-        if (storedCart) {
-            setCartItems(JSON.parse(storedCart));
-        }
-        if (storedDiscounts) {
-            setItemDiscounts(JSON.parse(storedDiscounts));
-        }
-        if (storedOptions) {
-            setItemOptions(JSON.parse(storedOptions));
-        }
-    }, []);
-
-    useEffect(() => {
-        if (cartItems.length > 0) {
-            localStorage.setItem('cartItems', JSON.stringify(cartItems));
-            localStorage.setItem('itemDiscounts', JSON.stringify(itemDiscounts));
-            localStorage.setItem('itemOptions', JSON.stringify(itemOptions));
-        } else {
-            localStorage.removeItem('cartItems');
-            localStorage.removeItem('itemDiscounts');
-            localStorage.removeItem('itemOptions');
-        }
-    }, [cartItems, itemDiscounts, itemOptions]);
-
-    const contextValue = {
-        cartItems,
-        itemDiscounts,
-        itemOptions,
-        updateItemOptions,
-        handleDiscountChange,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        getCartCount,
-        getCartAmount,
-        getDiscountedTotal,
-        createPreOrder,
-        clearCart,
-        products,
-        currency,
-        navigate,
-    };
-
-    return (
-        <CartContext.Provider value={contextValue}>
-            {children}
-        </CartContext.Provider>
+  const recalculateItem = (item)=> {
+    const finalUnitPrice  = calculateItemDiscount(
+      item.priceList,
+      item.discount1,
+      item.discount2,
+      item.discount3,
+      item.discount4,
     );
-};
 
-CartContextProvider.propTypes = {
-    children: PropTypes.node.isRequired,
-};
+    const finalTotalPrice = finalUnitPrice * item.quantity;
 
-export default CartContext;
+    return {
+      ...item,
+      description: item.description || "",
+      finalUnitPrice,
+      finalTotalPrice
+    };
+  };
+
+  const addToCart = (id, name, code, image, quantity, priceList, materialName, structureName, tela = null, description = "") => {
+    const newItem = {
+      id,
+      name,
+      code,
+      image,
+      quantity,
+      priceList,
+      materialName,
+      structureName,
+      tela,
+      description,
+      discount1: 0,
+      discount2: 0,
+      discount3: 0,
+      discount4: 0,
+    };
+
+    const calculatedItem = recalculateItem(newItem);
+    setCartItems((prev) => [...prev, calculatedItem]);
+  };
+
+  // ATUALIZAR QUANTIDADE 
+  const updateQuantity = (index, quantity)=> {
+    setCartItems(prev => {
+      const updated = [...prev];
+      updated[index].quantity = Math.max(1, Number(quantity));
+      
+      updated[index] = recalculateItem(updated[index]);
+      return updated;
+    });
+  };
+
+  // ATUALIZAR DESCONTOS
+  const updateDiscount = (index, field, value)=> {
+    setCartItems(prev => {
+      const updated = [...prev];
+      updated[index][field] = Math.max(0, Number(value));
+
+      updated[index] = recalculateItem(updated[index]);
+      return updated;
+    });
+  };
+
+  // REMOVER ITEM
+  const removeItem = (index)=> {
+    setCartItems(prev => prev.filter((_, i)=> i !== index));
+  };
+
+  // LIMPAR CARRINHO
+  const clearCart = ()=> {
+    setCartItems([]);
+    localStorage.removeItem("cartItems");
+    localStorage.removeItem("selectedClient");
+  };
+
+  // TOTAIS
+  const totalWithoutDiscount = cartItems.reduce(
+    (sum, item) => sum + item.priceList * item.quantity,
+    0
+  )
+
+  const totalWithDiscount = cartItems.reduce(
+    (sum, item) => sum + item.finalTotalPrice,
+    0
+  )
+
+  const value = {
+        cartItems,
+        addToCart,
+        updateQuantity,
+        updateDiscount,
+        removeItem,
+        clearCart,
+        totalWithoutDiscount,
+        totalWithDiscount    
+  }
+
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+    </CartContext.Provider>
+  )
+}
+
+export const useCart = ()=> useContext(CartContext)

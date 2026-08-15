@@ -1,49 +1,69 @@
-import { createContext, useEffect, useState } from "react";
-import PropTypes from "prop-types";
+import { createContext, useEffect, useState, useContext } from "react";
 import apiUrl from '../utils/api';
 
+const AuthContext = createContext();
 
-const AuthContext = createContext(null);
+export const AuthProvider = ({ children })=> {
 
-export const AuthContextProvider = ({ children })=> {
-
-    const [ user, setUser ] = useState(null);
+    const [ user, setUser ] = useState(()=> {
+        const saveUser = localStorage.getItem("user");
+        return saveUser ? JSON.parse(saveUser) : null;
+    });
     const [ isUser, setIsUser ] = useState(true);
+    const [token, setToken] = useState(localStorage.getItem("token") || null )
 
-    // Fetch User from Backend
-    const fetchUser = async () => {
+    useEffect(()=> {
+        if (token) {
+            apiUrl.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+            localStorage.setItem("token", token);
+        } else {
+            delete apiUrl.defaults.headers.common["Authorization"];
+            localStorage.removeItem("token");
+        }
+    }, [token])
+
+    useEffect(()=> {
+        if (user) {
+            localStorage.setItem('user', JSON.stringify(user));
+        } else {
+            localStorage.removeItem("user");
+        }
+    }, [user])
+    
+    const login = async ( email, password ) => {
         try {
-            const { data } = await apiUrl.get('/api/user/is-auth');
-            if (data.success) {
-                setUser(data.user);
-                localStorage.setItem('user', JSON.stringify(data.user));
-            }
+          // CAMINHO COMPLETO: /api/user/login
+          const res = await apiUrl.post("/api/user/login", { email, password });
+          
+          const { token: newToken, user: userData } = res.data;
+
+          setToken(newToken);
+          setUser(userData);
+
+          return { success: true };
+
         } catch (error) {
-            console.log(error);
-            setUser(null);
+            console.error("Erro no login: ", error.response?.data);
+            return {
+                success: false,
+                message: error.response?.data?.message || "Email ou senha incorretos"
+            };            
         }
     };
 
     const logout = ()=> {
+        setToken(null);
         setUser(null);
-        localStorage.removeItem('user');
+        localStorage.clear();
     }
-  
-    useEffect(()=> {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        } else {
-            fetchUser();            
-        }
-    },[])
 
     const value = {
         user, 
-        setUser, 
+        login, 
+        logout,
         isUser,
         setIsUser,
-        logout,
+        isAdmin: user?.role === "ADMIN"
     }
 
     return (
@@ -53,8 +73,5 @@ export const AuthContextProvider = ({ children })=> {
     )
 }
 
-AuthContextProvider.propTypes = {
-    children: PropTypes.node.isRequired,
-}
 
-export default AuthContext;
+export const useAuth = ()=> useContext (AuthContext);

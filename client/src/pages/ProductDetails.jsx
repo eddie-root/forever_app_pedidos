@@ -1,71 +1,132 @@
 import { useParams } from 'react-router-dom'
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import formatCurrency from '../utils/money.js';
-import ProductContext from '../context/ProductContext.jsx';
-import CartContext from '../context/CartContext.jsx';
+import { useCart } from '../context/CartContext.jsx';
+import api from '../utils/api.js';
+import { TelasData } from '../data/telas.js';
 
-const ProductDetails = () => {
+const ProductPage = () => {
 
-    const { codp } = useParams();
-    const { products } = useContext(ProductContext)
-    const { addToCart, currency } = useContext(CartContext)
+    const { id } = useParams();
+    const { addToCart } = useCart()
     
-    const [ productData, setProductData ] = useState()
-    const [ image, setImage ] = useState()
-    const [ assentos, setAssentos ] = useState('');
-    const [selectedPriceGroup, setSelectedPriceGroup] = useState(null); // New state for selected price group
-    const [quantity, setQuantity] = useState(1);
+    const [ productData, setProductData ] = useState(null)
+    const [ loading, setLoading ] = useState(true);
+    const [ image, setImage ] = useState('')
+    const [ material, setMaterial ] = useState('');
+    const [ selectedTelaType, setSelectedTelaType ] = useState('');
+    const [ selectedTelaColor, setSelectedTelaColor ] = useState('');
+    const [ selectedPriceGroup, setSelectedPriceGroup ] = useState(null); 
+    const [ quantity, setQuantity ] = useState(1);
 
-    const fetchProductData = async (codp, products)=> {
-        const product = products.find(item => item.codp === codp);
-        if (product) {
-            setProductData(product);
-            setImage(product.image[0]);
-            // Set the first price group as the default
-            if (product.priceGroups && product.priceGroups.length > 0) {
-                setSelectedPriceGroup(product.priceGroups[0]);
+    const fetchProductData = async (id)=> {
+        setLoading(true);
+        try {
+            const { data } = await api.get(`/api/products/${id}`);
+            if (data.success) {
+                const product = data.product;
+
+                // Group prices by structure
+                const priceGroupsMap = {};
+                product.prices.forEach(p => {
+                    const structureName = p.structure.name || 'Padrão';
+                    if (!priceGroupsMap[structureName]) {
+                        priceGroupsMap[structureName] = {
+                            name: structureName,
+                            prices: {}
+                        };
+                    }
+                    priceGroupsMap[structureName].prices[p.material.name] = p.price;
+                });
+
+                const priceGroups = Object.values(priceGroupsMap);
+
+                // Transform description (split into list by newline)
+                const descriptionList = product.description.split('\n').filter(line => line.trim() !== '');
+
+                const transformedProduct = {
+                    ...product,
+                    priceGroups,
+                    descriptionList,
+                    image: product.image ? [product.image] : []
+                };
+
+                setProductData(transformedProduct);
+                if (transformedProduct.image.length > 0) {
+                    setImage(transformedProduct.image[0]);
+                }
+
+                if (priceGroups.length > 0) {
+                    setSelectedPriceGroup(priceGroups[0]);
+                }
             }
+        } catch (error) {
+            console.error("Erro ao carregar produto:", error);
+        } finally {
+            setLoading(false);
         }
     }
     
     useEffect(()=> {
-        fetchProductData(codp,products)
-    },[codp, products])
+        fetchProductData(id)
+    },[id])
 
-    // Handler for when the user selects a different price group
     const handlePriceGroupChange = (e) => {
         const groupName = e.target.value;
         const group = productData.priceGroups.find(g => g.name === groupName);
         setSelectedPriceGroup(group);
-        setAssentos(''); // Reset selected seat when group changes
+        setMaterial(''); 
     };
 
-    // Determine the current price based on selected group and seat
     const getCurrentPrice = () => {
-        if (selectedPriceGroup && assentos) {
-            const price = selectedPriceGroup.prices[assentos];
+        if (selectedPriceGroup && material) {
+            const price = selectedPriceGroup.prices[material];
             return price ? formatCurrency(price) : 'N/A';
         }
         return 'Selecione um revestimento';
     };
 
-    // Get the raw numeric price for adding to cart
     const getCurrentPriceValue = () => {
-        if (selectedPriceGroup && assentos) {
-            return selectedPriceGroup.prices[assentos];
+        if (selectedPriceGroup && material) {
+            return selectedPriceGroup.prices[material];
         }
-        return 0; // Or handle as an error/invalid state
+        return 0; 
     };
 
     const handleAddToCart = () => {
-        if (assentos) {
-            addToCart(productData._id, quantity, getCurrentPriceValue(), assentos, selectedPriceGroup.name);
+        if (material) {
+            let telaInfo = null;
+            if (selectedTelaType && selectedTelaColor) {
+                telaInfo = `${selectedTelaType} - ${selectedTelaColor}`;
+            }
+
+            addToCart(
+                productData.id, 
+                productData.name, 
+                productData.code, 
+                image, 
+                quantity, 
+                getCurrentPriceValue(), 
+                material, 
+                selectedPriceGroup.name,
+                telaInfo,
+                productData.description
+            );
+            alert("Produto adicionado ao pedido!");
         } else {
             alert("Por favor, selecione um revestimento.");
         }
     }
 
-  return productData ? (
+  if (loading) return <div className="min-h-[60vh] flex items-center justify-center">
+    <div className="animate-pulse text-gray-500 font-medium">Carregando produto...</div>
+  </div>;
+  
+  if (!productData) return <div className="min-h-[60vh] flex items-center justify-center">
+    <div className="text-gray-500 font-medium">Produto não encontrado.</div>
+  </div>;
+
+  return (
       
       <div className='border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100' >
            
@@ -79,14 +140,14 @@ const ProductDetails = () => {
                                 <img 
                                     onClick={()=> setImage(item)}
                                     src={item} key={index} 
-                                    className='w-[24%] sm:w-full sm:mb-3 ' alt=""
+                                    className={`w-[24%] sm:w-full sm:mb-3 border-2 cursor-pointer rounded transition-all ${image === item ? 'border-primary' : 'border-transparent hover:border-gray-200'}`} alt=""
                                 />
                             ))
                         }
                     </div>
                     <div className='w-full sm:w-[60%]'>
                     <img 
-                        className='w-full h-auto'   
+                        className='w-full h-auto rounded-xl shadow-sm'   
                         src={image} alt="" 
                     />
                     </div>
@@ -94,22 +155,22 @@ const ProductDetails = () => {
                 {/* ----------  Product Info ---------- */}
 
                 <div className='flex-1'>
-                    <h1 className='font-medium text-2xl mt-2'>{productData.name}</h1>
+                    <h1 className='font-bold text-3xl text-gray-800'>{productData.name}</h1>
 
-                    <div className="flex items-center gap-0.5 mt-1">
-                        <span className="mt-1 text-gray-500 ">Codigo: </span>
-                        <p className=" font-medium text-xl ml-2 mt-2">{productData.codp}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                        <span className="text-gray-400 font-medium uppercase text-xs tracking-wider">Código</span>
+                        <p className="font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded text-sm">{productData.code}</p>
                     </div>
                     
-                    {/* --- New Price Group Selector --- */}
-                    {productData.priceGroups && productData.priceGroups.length > 1 && (
-                        <div className="mt-6">
-                            <label htmlFor="price-group-selector" className="text-base font-medium">Selecione a Estrutura:</label>
+                    {/* --- Structure Selector --- */}
+                    {productData.priceGroups && productData.priceGroups.length > 0 && (
+                        <div className="mt-8">
+                            <label htmlFor="price-group-selector" className="text-sm font-bold text-gray-500 uppercase tracking-tight">Estrutura / Modelo</label>
                             <select 
                                 id="price-group-selector"
                                 value={selectedPriceGroup ? selectedPriceGroup.name : ''}
                                 onChange={handlePriceGroupChange}
-                                className="w-full p-2 mt-2 border rounded-md"
+                                className="w-full p-3 mt-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white shadow-sm transition-all"
                             >
                                 {productData.priceGroups.map(group => (
                                     <option key={group.name} value={group.name}>{group.name}</option>
@@ -118,55 +179,108 @@ const ProductDetails = () => {
                         </div>
                     )}
 
-                    <div className="mt-6">
-                        <p className="text-2xl font-medium">
-                            {currency} {getCurrentPrice()}
+                    {/* --- Opcional: Telas Selector --- */}
+                    <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                        <p className="text-sm font-bold text-gray-500 uppercase tracking-tight mb-3">Opções de Tela (Opcional)</p>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Tipo de Tela</label>
+                                <select 
+                                    value={selectedTelaType}
+                                    onChange={(e) => {
+                                        setSelectedTelaType(e.target.value);
+                                        setSelectedTelaColor('');
+                                    }}
+                                    className="w-full p-2 border border-gray-200 rounded-md bg-white text-sm"
+                                >
+                                    <option value="">Escolher tela</option>
+                                    {Object.keys(TelasData).map(type => (
+                                        <option key={type} value={type}>{type}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {selectedTelaType && (
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Cor da Tela</label>
+                                    <select 
+                                        value={selectedTelaColor}
+                                        onChange={(e) => setSelectedTelaColor(e.target.value)}
+                                        className="w-full p-2 border border-gray-200 rounded-md bg-white text-sm"
+                                    >
+                                        <option value="">Escolher cor</option>
+                                        {TelasData[selectedTelaType].map(tela => (
+                                            <option key={tela.code} value={`${tela.code} - ${tela.name}`}>
+                                                {tela.code} - {tela.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="mt-8 bg-primary/5 p-4 rounded-xl border border-primary/10">
+                        <span className="text-xs font-bold text-primary uppercase block mb-1">Preço Unitário</span>
+                        <p className="text-3xl font-black text-primary">
+                            {getCurrentPrice()}
                         </p>
                     </div>
     
-                    <p className="text-base font-medium mt-6">About Product</p>
-                        <ul className="list-disc ml-4 text-gray-600">
-                           {productData.description.map((desc, index) => (
-                              <li key={index}>{desc}</li>
+                    <div className="mt-8">
+                        <p className="text-sm font-bold text-gray-500 uppercase tracking-tight mb-3">Características</p>
+                        <ul className="space-y-2">
+                           {productData.descriptionList.map((desc, index) => (
+                              <li key={index} className="flex items-start gap-2 text-gray-600">
+                                <span className="text-primary mt-1">•</span>
+                                <span className="text-sm leading-relaxed">{desc}</span>
+                              </li>
                             ))}
                         </ul>
+                    </div>
                     
                     {/* --- Coverages Section --- */}
                     {selectedPriceGroup && (
-                        <div>
-                            <p className='mt-6 text-gray-700 md:w-4/5'>Revestimentos Assentos:</p> 
-                            <div className='flex items-center flex-wrap gap-3 w-full mt-4 cursor-pointer'>
-                                {Object.keys(selectedPriceGroup.prices).map((assento, index)=> (
-                                    <p
-                                        className={` py-2 px-6 bg-primary/20 ${assento === assentos ? "bg-primary/50" : ""}`}
-                                        onClick={()=> setAssentos(assento)}
+                        <div className="mt-8">
+                            <p className='text-sm font-bold text-gray-500 uppercase tracking-tight mb-4'>Revestimentos Disponíveis</p> 
+                            <div className='flex items-center flex-wrap gap-2 w-full'>
+                                {Object.keys(selectedPriceGroup.prices).map((mName, index)=> (
+                                    <button
+                                        className={`py-2 px-5 text-sm font-medium rounded-full border-2 transition-all ${mName === material ? "bg-primary text-white border-primary shadow-md" : "bg-white text-gray-600 border-gray-100 hover:border-gray-300"}`}
+                                        onClick={()=> setMaterial(mName)}
                                         key={index}
                                     >
-                                    {assento}
-                                    </p>
+                                    {mName}
+                                    </button>
                                 ))}
                             </div>
                         </div>
                     )}
 
-                    <div className="flex items-center mt-8 gap-4">
-                        <div className="flex items-center border border-gray-300">
-                            <button onClick={() => setQuantity(prev => Math.max(1, prev - 1))} className="px-4 py-2">-</button>
-                            <span className="px-4 py-2">{quantity}</span>
-                            <button onClick={() => setQuantity(prev => prev + 1)} className="px-4 py-2">+</button>
+                    <div className="mt-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                        <div className="flex items-center border-2 border-gray-100 rounded-xl overflow-hidden bg-white h-14">
+                            <button onClick={() => setQuantity(prev => Math.max(1, prev - 1))} className="px-5 h-full hover:bg-gray-50 text-gray-500 transition-colors">
+                                <span className="text-xl font-bold">−</span>
+                            </button>
+                            <span className="px-6 font-bold text-gray-700 min-w-[60px] text-center">{quantity}</span>
+                            <button onClick={() => setQuantity(prev => prev + 1)} className="px-5 h-full hover:bg-gray-50 text-gray-500 transition-colors">
+                                <span className="text-xl font-bold">+</span>
+                            </button>
                         </div>
-                    </div>
-    
-                    <div className="flex items-center mt-10 gap-4 text-base">
-                        <button onClick={handleAddToCart} className="w-full py-3.5 cursor-pointer font-medium bg-gray-300 text-gray-700/90 hover:bg-gray-400 transition" >
-                            ADICIONAR AO PEDIDO
+
+                        <button 
+                            onClick={handleAddToCart} 
+                            className="flex-1 h-14 cursor-pointer font-bold bg-primary text-white hover:bg-opacity-90 hover:shadow-lg active:transform active:scale-[0.98] transition-all rounded-xl shadow-md uppercase tracking-wide text-sm" 
+                        >
+                            Adicionar ao Pedido
                         </button>
                     </div>
                 </div>
             </div>
         
     </div>
-  ) : <div className='opacity-0'></div>
+  ) 
 }
 
-export default ProductDetails
+export default ProductPage;

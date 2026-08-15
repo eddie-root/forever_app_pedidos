@@ -71,7 +71,7 @@ const CreatePreOrder = () => {
     }
 
     const orderData = {
-      client: selectedClient, // Sending the whole client object as requested
+      client: selectedClient._id, // Sending the whole client object as requested
       user: { // Sending user name as requested
         name: user.name,
         id: user._id

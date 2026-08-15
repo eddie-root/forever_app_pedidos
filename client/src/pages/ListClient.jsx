@@ -8,7 +8,7 @@ const ClientList = () => {
   // Busca os clientes ao carregar a página
   useEffect(() => {
     fetchClients();
-  });
+  }, []);
 
   const filteredClients = clients.filter(client =>
     client.rSocial?.toLowerCase().includes(search.toLowerCase()) ||

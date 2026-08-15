@@ -1,234 +1,245 @@
+import { useState } from "react";
+import { useCart } from "../context/CartContext";
+import { useClient } from "../context/ClientContext";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import api from "../utils/api";
+import formatCurrency from "../utils/money";
 
-import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import api from '../utils/api';
-import CartContext from '../context/CartContext';
-import AuthContext from '../context/AuthContext';
-import OrderContext from '../context/OrderContext';
-import { calculateItemDiscount } from '../utils/discount';
-import formatCurrency from '../utils/money';
+const CreateOrder = () => {
 
-const CreatePreOrder = () => {
+  const {
+    cartItems,
+    totalWithoutDiscount,
+    totalWithDiscount,
+    clearCart
+  } = useCart();
+
+  const {
+    selectedClient
+  } = useClient();
+
+  const { user } = useAuth();
+
   const navigate = useNavigate();
-  const { cartItems, getDiscountedTotal, currency, clearCart, itemOptions, itemDiscounts } = useContext(CartContext);
-  const { user } = useContext(AuthContext);
-  const { finalizePreOrder, loading: orderLoading, error: orderError } = useContext(OrderContext);
 
-  const [clients, setClients] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [prazo, setPrazo] = useState('');
-  const [transportadora, setTransportadora] = useState('');
-  const [observation, setObservation] = useState('');
- 
-  useEffect(() => {
-    // Redirect if user is not logged in
-    if (!user) {
-      toast.error('Você precisa estar logado para criar um pedido.');
-      navigate('/login');
-    }
-    // Redirect if cart is empty
-    if (cartItems.length === 0) {
-      toast.error('Seu carrinho está vazio.');
-      navigate('/my-orders');
-    }
-  }, [user, cartItems, navigate]);
+  const [term, setTerm] = useState("");
+  const [typeShipping, setTypeShipping] = useState("FOB");
+  const [carrying, setCarrying] = useState("");
+  const [observations, setObservations] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const response = await api.get('/api/client/getAll');
-        if (response.data.success) {
-          setClients(response.data.clients);
-        }
-      } catch (error) {
-        toast.error('Falha ao buscar clientes.');
-        console.error("Error fetching clients:", error);
-      }
-    };
-    if (user) { // Only fetch clients if user is logged in
-      fetchClients();
-    }
-  }, [user]);
-
-  const filteredClients = clients.filter(client =>
-    client.rSocial.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.cnpj.includes(searchTerm)
-  );
-
-  const handleSelectClient = (client) => {
-    setSelectedClient(client);
-    setSearchTerm('');
-  };
+  if (!selectedClient) {
+    return (
+      <div className="container-page">
+        <h1 className="text-2xl font-semibold mb-4">
+          Nenhum cliente selecionado
+        </h1>
+        <button
+          onClick={() => navigate("/clients")}
+          className="btn-primary"
+        >
+          Selecionar Cliente
+        </button>
+      </div>
+    );
+  }
 
   const handleCreateOrder = async () => {
-    if (!selectedClient) {
-      return toast.error('Por favor, selecione um cliente.');
-    }
-    if (!prazo || !transportadora) {
-      return toast.error('Preencha o prazo e a transportadora.');
-    }
+      if (loading) return;
 
-    const orderData = {
-      client: selectedClient._id, // Sending the whole client object as requested
-      user: { // Sending user name as requested
-        name: user.name,
-        id: user._id
-      },
-      products: cartItems.map(item => {
-        const key = `${item.product._id}-${item.assento}`;
-        const options = itemOptions[key] || {};
-        const discounts = itemDiscounts[key] || {};
-        const totalPriceAfterDiscount = calculateItemDiscount(
-          item.price * item.quantity,
-          discounts.discount1,
-          discounts.discount2,
-          discounts.discount3,
-          discounts.discount4
-        );
+      setLoading(true);
+    
+      if (!selectedClient || !selectedClient.id) {
+        alert("Selecione um cliente antes de confirmar o pedido.");
+        return;
+      }
 
-        return {
-          productId: item.product._id,
-          codp: item.product.codp,
-          name: item.product.name,
-          quantity: item.quantity,
-          price: item.price,
-          new_price: totalPriceAfterDiscount, // Adding new_price to satisfy the schema
-          totalPriceAfterDiscount,
-          discounts,
-          description: item.product.description, // Sending description as requested
-          base: item.priceGroupName, // Sending base as requested
-          tela: options.tela,
-          revestimento: options.revestimento,
-        };
-      }),
-      totalAmount: getDiscountedTotal(),
-      prazo,
-      transportadora,
-      observation,
-    };
+      if (!user || !user.id) {
+        alert("Usuário não autenticado.");
+        return;
+      }
+    
+      if (cartItems.length === 0) {
+        alert("Carrinho vazio.");
+        return;
+      }
+    
+      if (!term.trim()) {
+        alert("Informe o prazo.");
+        return;
+      }
+    
+      if (!typeShipping) {
+        alert("Selecione o tipo de frete.");
+        return;
+      }
 
-    const response = await finalizePreOrder(orderData);
+    
+        try {
+    
+            const payload = {
+              userId: user.id,
+              clientId: selectedClient.id,
+              term,
+              typeShipping,
+              carrying,
+              observations,
+              totalWithoutDiscounts: totalWithoutDiscount,
+              totalWithDiscounts: totalWithDiscount,
+              items: cartItems.map(item => ({
+                cod: item.code,
+                name: item.name,
+                description: item.description,
+                colorTelas: item.tela || "N/A",
+                structureName: item.structureName,
+                materialName: item.materialName,
+                quantity: item.quantity,
+                discount1: item.discount1 || 0,
+                discount2: item.discount2 || 0,
+                discount3: item.discount3 || 0,
+                discount4: item.discount4 || 0,
+                priceList: item.priceList,
+                priceWithDiscount: item.finalUnitPrice,
+                priceTotalWithoutDisc: item.priceList * item.quantity,
+                priceTotalWithDisc: item.finalTotalPrice
+              }))
+            };
 
-    if (response.success) {
-      toast.success('Pré-pedido criado com sucesso!');
-      clearCart();
-      navigate('/my-orders');
-    } else {
-      toast.error(response.message || 'Falha ao criar o pré-pedido.');
-    }
-  };
+            const { data } = await api.post("/api/orders/pre-order", payload);
+        
+            if (data.success) {
+        
+              clearCart();
+        
+              navigate(`/orders`);
+        
+            }
+      
+        } catch (error) {
+          console.error(error);
+          alert("Erro ao criar pedido.");
+        }
+
+        setLoading(false);
+      
+      };
 
   return (
-    <div className="py-10 max-w-6xl mx-auto px-4">
-      <h1 className="text-3xl font-semibold mb-8">Criar Pré-Pedido</h1>
+    <div className="container-page">
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Coluna da Esquerda: Cliente e Detalhes do Pedido */}
-        <div>
-          {/* Seleção de Cliente */}
-          <div className="bg-white p-6 border rounded-lg mb-8">
-            <h2 className="text-xl font-medium mb-4">1. Selecione o Cliente</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold mb-8">Confirmar Pedido</h1>
+        <button
+          onClick={()=> navigate('/cart')}
+          className="text-gray-500 hover:text-gray-700 cursor-pointer"
+        >
+          Voltar p/ Carrinho
+        </button>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-8">
+
+        {/* 🔹 COLUNA ESQUERDA */}
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* Cliente */}
+          <div className="card">
+            <h2 className="font-semibold mb-2">
+              Cliente
+            </h2>
+
+            <p>{selectedClient.rSocial}</p>
+            <p className="text-sm text-textSecondary">
+              CNPJ: {selectedClient.cnpj}
+            </p>
+            <p className="text-sm text-textSecondary">
+              Cidade: {selectedClient.city}
+            </p>
+          </div>
+
+          {/* Dados Comerciais */}
+          <div className="card space-y-4">
+
+            <h2 className="font-semibold">
+              Dados do Pedido
+            </h2>
+
             <input
               type="text"
-              placeholder="Buscar por Razão Social ou CNPJ..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-2 border rounded-md mb-4"
+              placeholder="Prazo (ex: 28/56/84)"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              className="w-full border rounded px-3 py-2"
             />
-            {searchTerm && (
-              <ul className="border rounded-md max-h-60 overflow-y-auto">
-                {filteredClients.length > 0 ? filteredClients.map(client => (
-                  <li
-                    key={client._id}
-                    onClick={() => handleSelectClient(client)}
-                    className="p-3 hover:bg-gray-100 cursor-pointer"
-                  >
-                    <p className="font-semibold">{client.rSocial}</p>
-                    <p className="text-sm text-gray-600">{client.cnpj}</p>
-                  </li>
-                )) : <li className="p-3 text-gray-500">Nenhum cliente encontrado.</li>}
-              </ul>
-            )}
-            {selectedClient && (
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h3 className="font-semibold text-lg">{selectedClient.rSocial}</h3>
-                <p><strong>CNPJ:</strong> {selectedClient.cnpj}</p>
-                <p><strong>Endereço:</strong> {`${selectedClient.address}, ${selectedClient.city}`}</p>
-                <button onClick={() => setSelectedClient(null)} className="text-red-500 text-sm mt-2">Limpar seleção</button>
-              </div>
-            )}
+
+            <select
+              value={typeShipping}
+              onChange={(e) => setTypeShipping(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            >
+              <option value="FOB">FOB</option>
+              <option value="CIF">CIF</option>
+            </select>
+
+            <input
+              type="text"
+              placeholder="Transportadora"
+              value={carrying}
+              onChange={(e) => setCarrying(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+
+            <textarea
+              placeholder="Observações"
+              value={observations}
+              onChange={(e) => setObservations(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+              rows="4"
+            />
+
           </div>
 
-          {/* Detalhes Adicionais do Pedido */}
-          <div className="bg-white p-6 border rounded-lg">
-            <h2 className="text-xl font-medium mb-4">2. Detalhes do Pedido</h2>
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Prazo de Pagamento"
-                value={prazo}
-                onChange={(e) => setPrazo(e.target.value)}
-                className="w-full p-2 border rounded-md"
-              />
-              <input
-                type="text"
-                placeholder="Transportadora"
-                value={transportadora}
-                onChange={(e) => setTransportadora(e.target.value)}
-                className="w-full p-2 border rounded-md"
-              />
-              <textarea
-                placeholder="Observações..."
-                value={observation}
-                onChange={(e) => setObservation(e.target.value)}
-                className="w-full p-2 border rounded-md h-24"
-              />
-            </div>
-          </div>
         </div>
 
+        {/* 🔹 COLUNA DIREITA */}
+        <div className="card h-fit space-y-4">
 
-        {/* Coluna da Direita: Resumo do Carrinho */}
-        <div className="bg-gray-50 p-6 border rounded-lg">
-          <h2 className="text-xl font-medium mb-4">3. Resumo dos Produtos</h2>
-          <div className="space-y-4 max-h-96 overflow-y-auto">
-            {cartItems.map(item => {
-                 const key = `${item.product._id}-${item.assento}`;
-                 const options = itemOptions[key] || {};
-                return(
-              <div key={`${item.product._id}-${item.assento}`} className="flex justify-between items-start border-b pb-2">
-                <div>
-                  <p className="font-semibold">{item.product.subcategory}</p>
-                  <p className="text-sm text-gray-600">{item.product.codp}</p>
-                  <p className="text-sm text-gray-600">Qtd: {item.quantity}</p>
-                  {options.tela && <p className="text-sm text-gray-600">Tela: {options.tela}</p>}
-                  {options.revestimento && <p className="text-sm text-gray-600">Revestimento: {options.revestimento}</p>}
-                </div>
-                <p className="font-medium">{currency} {formatCurrency(item.price * item.quantity)}</p>
-              </div>
-            )})}
-          </div>
-          
-          <div className="mt-6 pt-4 border-t">
-            <div className="flex justify-between text-xl font-bold">
-              <span>Total com Descontos:</span>
-              <span>{currency} {formatCurrency(getDiscountedTotal())}</span>
+          <h2 className="font-semibold">
+            Resumo
+          </h2>
+
+          {cartItems.map((item, index) => (
+            <div key={index} className="border-b pb-2">
+              <p className="font-medium">
+                {item.code} - {item.name}
+              </p>
+              <p className="text-sm">
+                Qtd: {item.quantity}
+              </p>
+              <p className="text-sm font-medium">
+                Total: {formatCurrency(item.finalTotalPrice)}
+              </p>
             </div>
-            <button
-              onClick={handleCreateOrder}
-              disabled={!selectedClient || cartItems.length === 0 || orderLoading}
-              className="w-full py-3 mt-6 cursor-pointer bg-primary text-white font-medium rounded-lg hover:bg-primary-dull transition disabled:bg-gray-400"
-            >
-              {orderLoading ? 'Criando Pedido...' : 'Confirmar e Criar Pedido'}
-            </button>
-            {orderError && <p className="text-red-500 text-sm mt-2">{orderError}</p>}
+          ))}
+
+          <div className="flex justify-between font-semibold text-lg pt-4">
+            <span>Total Final:</span>
+            <span> {formatCurrency(totalWithDiscount)}</span>
           </div>
+
+          <button
+            onClick={handleCreateOrder}
+            disabled={loading || !selectedClient}
+            className="btn-primary bg-primary w-full mt-4 disabled:opacity-50 cursor-pointer"
+          >
+            {loading ? "Criando..." : "Confirmar e Criar Pedido"}
+          </button>
+
         </div>
       </div>
     </div>
   );
 };
 
-export default CreatePreOrder;
+export default CreateOrder;

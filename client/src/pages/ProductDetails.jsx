@@ -16,7 +16,7 @@ const ProductDetails = () => {
     const [selectedPriceGroup, setSelectedPriceGroup] = useState(null); // New state for selected price group
     const [quantity, setQuantity] = useState(1);
 
-    const fetchProductData = async ()=> {
+    const fetchProductData = async (codp, products)=> {
         const product = products.find(item => item.codp === codp);
         if (product) {
             setProductData(product);
@@ -29,7 +29,7 @@ const ProductDetails = () => {
     }
     
     useEffect(()=> {
-        fetchProductData()
+        fetchProductData(codp,products)
     },[codp, products])
 
     // Handler for when the user selects a different price group

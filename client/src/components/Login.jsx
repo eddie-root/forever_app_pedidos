@@ -33,7 +33,6 @@ const Login = () => {
                 className="flex flex-col gap-4 m-auto items-start p-8 py-12 w-80 sm:w-[352px] rounded-lg shadow-xl border border-gray-200 bg-white"
             >
                             
-
                 <p className="text-2xl font-medium m-auto">
                     <span className="text-primary">Usuário</span> Login
                 </p>
@@ -66,6 +65,14 @@ const Login = () => {
                     className="bg-primary hover:bg-opacity-90 transition-all text-white w-full py-2 mt-10 rounded-md cursor-pointer"
                 >
                     Fazer login
+                </button>
+
+                <button 
+                    type="button"
+                    onClick={() => navigate('/')}
+                    className="w-full text-center text-sm text-gray-600 mt-2 hover:underline"
+                    >
+                    Voltar para a Home
                 </button>
  
             </form>

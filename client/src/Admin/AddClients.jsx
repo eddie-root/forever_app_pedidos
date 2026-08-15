@@ -1,17 +1,18 @@
-import React, { useContext, useState } from 'react';
-import AppContext from '../../context/AuthContext';
-import { toast } from 'react-hot-toast';
-import api from '../../utils/api';
+import React, { useState } from 'react';
+import { useClient } from '../context/ClientContext';
+import { useNavigate } from 'react-router-dom';
 
-const SellerAddClient = () => {
-    const { navigate } = useContext(AppContext);
+const AddClients = () => {
+    const navigate = useNavigate();
+    const { createClient } = useClient();
+    
     const [formData, setFormData] = useState({
         rSocial: '',
         nFantasia: '',
         cnpj: '',
         inscEstadual: '',
         suframa: '',
-        dataDeFundaçao: '',
+        dateFoundation: '',
         address: '',
         bairro: '',
         city: '',
@@ -65,12 +66,9 @@ const SellerAddClient = () => {
                     city: data.localidade,
                     county: data.uf
                 }));
-            } else {
-                toast.error('CEP não encontrado');
-            }
+            }                
         } catch (error) {
-            console.error('Erro ao buscar CEP:', error);
-            toast.error('Erro ao buscar CEP');
+            console.error('Erro ao buscar CEP:', error);        
         }
     };
 
@@ -89,21 +87,16 @@ const SellerAddClient = () => {
                 cep: formData.cep.replace(/\D/g, '')
             };
 
-            const { data } = await api.post('/api/client/create', formattedData);
+            const result = await createClient(formattedData);
 
-            if (data.success) {
-                toast.success('Cliente adicionado com sucesso!');
-                navigate('/admin/add-client');
+            if (result.success) {
+                alert('Cliente adicionado com sucesso!');
+                navigate('/admin/list-clients');
             } else {
-                toast.error(data.message || 'Erro ao adicionar cliente');
+                alert(result.message || 'Erro ao adicionar cliente');
             }
         } catch (error) {
             console.error('Erro ao adicionar cliente:', error);
-            if (error.response?.data?.message) {
-                toast.error(error.response.data.message);
-            } else {
-                toast.error('Erro ao adicionar cliente');
-            }
         }
     };
 
@@ -156,7 +149,7 @@ const SellerAddClient = () => {
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-medium">Adicionar Novo Cliente</h1>
                     <button 
-                        onClick={() => navigate('/client-list')}
+                        onClick={()=> navigate('/admin/list-clients')}
                         className="text-gray-500 hover:text-gray-700"
                     >
                         Voltar
@@ -239,8 +232,8 @@ const SellerAddClient = () => {
                                 </label>
                                 <input
                                     type="date"
-                                    name="dataDeFundaçao"
-                                    value={formData.dataDeFundaçao}
+                                    name="dateFoundation"
+                                    value={formData.dateFoundation}
                                     onChange={handleChange}
                                     className="w-full px-4 py-2.5 border rounded-md"
                                 />
@@ -437,7 +430,7 @@ const SellerAddClient = () => {
                     <div className="flex justify-end gap-4">
                         <button
                             type="button"
-                            onClick={() => navigate('/admin/add-client/')}
+                            onClick={() => navigate('/clients')}
                             className="px-6 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
                         >
                             Cancelar
@@ -455,4 +448,4 @@ const SellerAddClient = () => {
     );
 };
 
-export default SellerAddClient; 
+export default AddClients; 

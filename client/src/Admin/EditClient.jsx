@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useContext } from 'react';
-import GlobalContext from '../../context/GlobalContext';
-import { toast } from 'react-hot-toast';
-import { useParams } from 'react-router-dom';
-import api from '../../utils/api';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import apiUrl from '../utils/api';
 
 const EditClient = () => {
-    const { navigate } = useContext(GlobalContext);
+    const navigate = useNavigate();
     const { id } = useParams();
     const [formData, setFormData] = useState({
         rSocial: '',
@@ -13,7 +11,7 @@ const EditClient = () => {
         cnpj: '',
         inscEstadual: '',
         suframa: '',
-        dataDeFundaçao: '',
+        dateFoundation: '',
         address: '',
         bairro: '',
         city: '',
@@ -32,19 +30,19 @@ const EditClient = () => {
     useEffect(() => {
         const fetchClient = async () => {
             try {
-                const { data } = await api.get(`/api/client/getClient/${id}`);
+                const { data } = await apiUrl.get(`/api/client/${id}`);
                 if (data.success) {
                     setFormData(data.client);
                 } else {
-                    toast.error('Cliente não encontrado');
+                    console.error('Cliente não encontrado');
                 }
             } catch (error) {
                 console.error(error.message)
-                toast.error('Erro ao carregar dados do cliente');
+        
             }
         };
         fetchClient();
-    }, [id, api]);
+    }, [id]);
 
 
     const handleChange = (e) => {
@@ -85,11 +83,11 @@ const EditClient = () => {
                     county: data.uf
                 }));
             } else {
-                toast.error('CEP não encontrado');
+                console.error('CEP não encontrado');
             }
         } catch (error) {
             console.error('Erro ao buscar CEP:', error);
-            toast.error('Erro ao buscar CEP');
+            
         }
     };
 
@@ -108,20 +106,20 @@ const EditClient = () => {
                 cep: formData.cep.replace(/\D/g, '')
             };
 
-            const { data } = await api.put(`/api/client/updateClient/${id}`, formattedData);
+            const { data } = await apiUrl.put(`/api/client/${id}`, formattedData);
 
             if (data.success) {
-                toast.success('Cliente atualizado com sucesso!');
-                navigate('/admin/list-client');
+                alert('Cliente atualizado com sucesso!');
+                navigate('/admin/list-clients');
             } else {
-                toast.error(data.message || 'Erro ao atualizar cliente');
+                console.error(data.message || 'Erro ao atualizar cliente');
             }
         } catch (error) {
             console.error('Erro ao atualizar cliente:', error);
             if (error.response?.data?.message) {
-                toast.error(error.response.data.message);
+                console.error(error.response.data.message);
             } else {
-                toast.error('Erro ao atualizar cliente');
+                console.error('Erro ao atualizar cliente');
             }
         }
     };
@@ -175,7 +173,7 @@ const EditClient = () => {
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-medium">Editar Cliente</h1>
                     <button 
-                        onClick={() => navigate('/admin/list-client')}
+                        onClick={() => navigate('/admin/list-clients')}
                         className="text-gray-500 hover:text-gray-700"
                     >
                         Voltar
@@ -258,8 +256,8 @@ const EditClient = () => {
                                 </label>
                                 <input
                                     type="date"
-                                    name="dataDeFundaçao"
-                                    value={formData.dataDeFundaçao}
+                                    name="dateFoundation"
+                                    value={formData.dateFoundation}
                                     onChange={handleChange}
                                     className="w-full px-4 py-2.5 border rounded-md"
                                 />
@@ -456,7 +454,7 @@ const EditClient = () => {
                     <div className="flex justify-end gap-4">
                         <button
                             type="button"
-                            onClick={() => navigate('/admin/list-client')}
+                            onClick={() => navigate('/admin/list-clients')}
                             className="px-6 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
                         >
                             Cancelar

@@ -1,68 +1,100 @@
-import React, { useContext } from 'react'
-import toast from 'react-hot-toast';
-import GlobalContext from '../../context/GlobalContext';
-import { Link, NavLink, Outlet } from 'react-router-dom';
-import { assets } from '../../assets/assets';
-import api from '../../utils/api';
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { useState } from "react";
 
 const AdminLayout = () => {
 
-    const { navigate } = useContext(GlobalContext);
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
 
-    const sidebarLinks = [
-        { name: 'Add Product', path: '/admin', icon: assets.add_icon },
-        { name: 'Product List', path: '/admin/product-list', icon: assets.product_list_icon },
-        { name: 'Add Client', path: '/admin/add-client', icon: assets.add_icon },
-        { name: 'List Client', path: '/admin/list-client', icon: assets.product_list_icon },
-        { name: 'List Orders', path: '/admin/list-orders', icon: assets.product_list_icon },
-    ]
-
-    const logout = async ()=> {
-        try {
-            const { data } = await api.get('/api/admin/logout')
-            if (data.success) {
-                toast.success(data.message)
-                setTimeout(() => {
-                    navigate('/');
-                }, 100);
-                                
-            } else {
-                toast.error(data.message)
-            }
-        } catch (error) {
-            toast.error(error.message)
-        }
-    }
+  const navItem = (to, label) => (
+    <Link
+      to={to}
+      onClick={() => setMenuOpen(false)}
+      className={`block px-4 py-2 rounded-lg text-sm font-medium transition ${
+        location.pathname === to
+          ? "bg-primary text-white"
+          : "hover:bg-primary/10"
+      }`}
+    >
+      {label}
+    </Link>
+  );
 
   return (
-    <>
-        <div className='flex items-center justify-between px-4 md:px-8 border-b border-gray-400 py-3 bg-white'>
-            <Link to='/'>
-                <img src={assets.logo} alt="logo" className='cursor-pointer w-54'/>
-            </Link>
-            <div className='flex items-center gap-5 text-gray-500'>
-                <p>Hi! Admin</p>
-                <button onClick={logout} className='border rounded-full text-sm px-4 py-1 cursor-pointer'>Logout</button>
-            </div>
-        </div>
-        <div className='flex'>
-            <div className='md:w-64 w-16 border-r-h[95wh] text-base border-gray-400 pt-4 flex flex-col transition-all duration-300' >
-                {sidebarLinks.map((item)=> (
-                    <NavLink 
-                        to={item.path}
-                        key={item.name}
-                        end={item.path === '/admin'}
-                        className={({ isActive })=> `flex items-center py-3 px-4 gap-3 ${isActive ? 'border-r-4 md:border-r-[6px] bg-primary/30 border-primary text-primary' : 'hover:bg-gray-200/90 border-white'}`}
-                    >
-                        <img src={item.icon} alt="" className='w-7 h-7'/>
-                        <p className='md:block hidden text-center'>{item.name}</p>
-                    </NavLink>
-                ))}
-            </div>
-            <Outlet />
-        </div>
-    </>
-  )
-}
+    <div className="min-h-screen bg-backgroundSoft flex flex-col">
 
-export default AdminLayout
+      {/* HEADER */}
+      <header className="bg-primary text-white">
+
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+
+          <div className="flex items-center gap-4">
+
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="md:hidden flex flex-col gap-1"
+            >
+              <span className="w-6 h-[2px] bg-white"></span>
+              <span className="w-6 h-[2px] bg-white"></span>
+              <span className="w-6 h-[2px] bg-white"></span>
+            </button>
+
+            <h1 className="font-semibold text-lg">
+              Admin Panel
+            </h1>
+
+            <span className="hidden md:block text-sm opacity-80">
+              Sucesso Representações
+            </span>
+
+          </div>
+
+          <Link
+            to="/"
+            className="text-sm bg-white/10 px-3 py-1 rounded-lg hover:bg-white/20"
+          >
+            ← Voltar ao App
+          </Link>
+        </div>
+      </header>
+
+
+      <div className="flex flex-1">
+
+        {/* SIDEBAR */}
+        <aside
+          className={`bg-white shadow-md w-64 p-4 space-y-2
+          ${menuOpen ? "block" : "hidden"} md:block`}
+        >
+
+          <h2 className="text-sm font-semibold text-gray-500 mb-3">
+            Administração
+          </h2>
+
+          {navItem("/admin", "Produtos")}
+          {navItem("/admin/list-products", "Lista Produtos")}
+          {navItem("/admin/clients", "Clientes")}
+          {navItem("/admin/list-clients", "Lista Clientes")}
+          {navItem("/admin/register", "Usuários")}
+
+        </aside>
+
+
+        {/* CONTEÚDO */}
+        <main className="flex-1 p-6">
+
+          <div className="max-w-6xl mx-auto">
+
+            <Outlet />
+
+          </div>
+
+        </main>
+
+      </div>
+
+    </div>
+  );
+};
+
+export default AdminLayout;

@@ -1,16 +1,58 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
-*{
-    font-family: 'Outfit', sans-serif;
-}
+/* ============================= */
+/*   DESIGN SYSTEM DEFINITIVO    */
+/* ============================= */
 
 @theme {
-    --color-primary: #4fbf8b;
-    --color-primary-dull: #44ae7c;
+  --color-primary: #1E293B;       /* azul institucional */
+  --color-accent: #DC2626;        /* vermelho ação */
+  --color-background: #F8FAFC;    /* fundo suave */
+  --color-border-soft: #E2E8F0;   /* bordas */
+  --color-text-secondary: #64748B;
 }
 
-.no-scrollbar::-webkit-scrollbar{
-    display: none;
+/* ============================= */
+
+* {
+  font-family: 'Outfit', sans-serif;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-primary);
+}
+
+/* ===== BOTÕES ===== */
+
+.btn-primary {
+  @apply bg-[--color-accent] text-white h-12 px-6 rounded-xl font-medium hover:opacity-90 transition;
+}
+
+.btn-secondary {
+  @apply bg-white border border-[--color-border-soft] text-[--color-primary] h-12 px-6 rounded-xl hover:bg-gray-50 transition;
+}
+
+/* ===== CARDS ===== */
+
+.card {
+  @apply bg-white border border-[--color-border-soft] rounded-xl shadow-sm p-6;
+}
+
+/* ===== TÍTULOS ===== */
+
+.title-page {
+  @apply text-3xl font-semibold mb-6;
+}
+
+.title-section {
+  @apply text-xl font-semibold mb-4;
+}
+
+/* ===== UTILIDADES ===== */
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

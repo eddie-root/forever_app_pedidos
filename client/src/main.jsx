@@ -3,28 +3,19 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { BrowserRouter } from 'react-router-dom'
-import { AuthContextProvider } from './context/AuthContext.jsx'
-import { GlobalContextProvider } from './context/GlobalContext.jsx'
-import { ProductContextProvider } from './context/ProductContext.jsx'
-import { UIContextProvider } from './context/UIContext.jsx'
-import { CartContextProvider } from './context/CartContext.jsx';
-import { OrderContextProvider } from './context/OrderContext.jsx'
+import { AuthProvider } from './context/AuthContext.jsx'
+import { CartProvider } from './context/CartContext.jsx';
+import { ClientProvider } from './context/ClientContext.jsx'
 
 
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
-    <GlobalContextProvider>
-      <AuthContextProvider>
-        <ProductContextProvider>
-            <UIContextProvider>
-              <CartContextProvider>
-                <OrderContextProvider>
-                  <App />
-                </OrderContextProvider>
-              </CartContextProvider>
-            </UIContextProvider>          
-        </ProductContextProvider>
-      </AuthContextProvider>
-    </GlobalContextProvider>
+      <AuthProvider>
+        <ClientProvider>
+          <CartProvider>
+            <App />
+          </CartProvider>
+        </ClientProvider>
+      </AuthProvider>
   </BrowserRouter>,
 )

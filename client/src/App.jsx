@@ -1,68 +1,53 @@
+import { Route, Routes } from "react-router-dom"
 import { Toaster } from "react-hot-toast"
-import { useContext } from "react"
-import { Route, Routes, useLocation } from "react-router-dom"
-import UIContext from "./context/UIContext"
-import Navbar from "./components/Navbar"
-import Footer from "./components/Footer"
+import MainLayout from "./components/MainLayout"
 import Login from "./components/Login"
-import ProtectedRoute from "./components/ProtectedRoute"
+
 import Home from "./pages/Home"
-import CollectionList from "./pages/CollectionList"
-import Contact from "./pages/Contact"
 import Product from "./pages/Product"
-import ProductDetails from "./pages/ProductDetails"
 import Cart from "./pages/Cart"
-import CreatePreOrder from "./pages/CreatePreOrder"
-import MyOrder from "./pages/MyOrder"
-import AdminLayout from "./pages/Admin/AdminLayout"
-import AddProduct from "./pages/Admin/AddProduct"
-import AddClient from './pages/Admin/AddClient'
-import ListClient from './pages/Admin/ListClient'
-import EditClient from './pages/Admin/EditClient'
-import ListOrder from './pages/Admin/ListOrder'
-import OrderDetail from './pages/Admin/OrderDetail'
-import ListProduct from "./pages/Admin/ListProduct"
-import EditProduct from "./pages/Admin/EditProduct"
+import ListOrder from "./pages/ListOrder"
+import ListClient from "./pages/ListClient"
+import AdminLayout from "./admin/AdminLayout"
+import AdminUsers from "./Admin/AdminUsers"
+import AddProduct from "./Admin/AddProduct"
+import AddClients from "./Admin/AddClients"
+import ListClients from "./Admin/ListClients"
+import ListProduct from "./admin/ListProduct"
+import EditProduct from "./Admin/EditProduct"
+import EditClient from "./admin/EditClient"
+import ProductPage from "./pages/ProductPage"
+import CreateOrder from "./pages/CreatePreOrder"
+import OrderDetails from "./pages/OrderDetails"
 
 const App = () => {
 
-  const isUserPath = useLocation().pathname.includes('admin');
-  const { showUserLogin } = useContext(UIContext);
-
   return (
-    <div className='min-h-screen text-deafault text-gray-700 bg-white'>
-
-     {isUserPath ? null : <Navbar />}
-     { showUserLogin ? <Login /> : null}
-    
+    <>
       <Toaster />
-      
-      <div className="px-6 md:px-16 lg:px-24 xl:px-32">
         <Routes >
-          <Route path='/' element={<Home />} />
-          <Route path="/collection" element={<CollectionList />} />
-          <Route path="/product/:productId" element={<Product />} />
-          <Route path="/product/:productId/:codp" element={<ProductDetails />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/pre-order" element={<CreatePreOrder />} />
-          <Route path="/my-orders" element={<MyOrder />} />
-          <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute> } >
+          <Route element={<MainLayout />} >
+            <Route path='/' element={<Home />} />        
+            <Route path='/login' element={<Login />} />        
+            <Route path='/products' element={<Product />} />     
+            <Route path='/products/:id' element={<ProductPage />} />     
+            <Route path='/cart' element={<Cart />} />
+            <Route path='/create-order' element={<CreateOrder />} />
+            <Route path='/clients' element={<ListClient />} />     
+            <Route path='/orders' element={<ListOrder />} />
+            <Route path='/orders/:id' element={<OrderDetails />} />
+          </Route>
+          <Route path="/admin" element={<AdminLayout />} >
             <Route index element={<AddProduct />} />
-            <Route path="product-list" element={<ListProduct />} />
+            <Route path="list-products" element={<ListProduct />} />
             <Route path="edit-product/:id" element={<EditProduct />} />
-            <Route path='add-client' element={<AddClient />} />
-            <Route path='list-client' element={<ListClient />} />
-            <Route path='edit-client/:id' element={<EditClient />} />
-            <Route path='list-orders' element={<ListOrder />} />
-            <Route path='orders/:id' element={<OrderDetail />} />
+            <Route path="clients" element={<AddClients />} />
+            <Route path="list-clients" element={<ListClients />} />
+            <Route path="edit-client/:id" element={<EditClient />} />
+            <Route path="register" element={<AdminUsers />} />
           </Route>
         </Routes>
-          
-      </div>
-
-      {!isUserPath && <Footer />}
-    </div>
+    </>
   )
 }
 

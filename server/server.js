@@ -4,9 +4,9 @@ import express from 'express';
 import cors from 'cors';
 import './configs/cloudinary.js';
 import userRouter from './routers/userRoute.js';
-import clientRouter from './routers/clientRouter.js';
 import productRouter from './routers/productRoute.js';
 import orderRouter from './routers/orderRoute.js';
+import clientRouter from './routers/clientRoute.js';
 
 // app config
 const app = express();

@@ -1,5 +1,12 @@
 import express from 'express';
-import { createPreOrder, getMyOrders, getAllOrders, getOrderById, deleteOrder } from '../controllers/orderController.js';
+import { 
+  createPreOrder, 
+  getMyOrders, 
+  getAllOrders, 
+  getOrderById, 
+  deleteOrder, 
+  getOrderPdf 
+} from '../controllers/orderController.js';
 import authUser from '../middlewares/authUser.js';
 
 const orderRouter = express.Router();
@@ -12,6 +19,9 @@ orderRouter.get('/my-orders', authUser, getMyOrders);
 
 // Rota para buscar todos os pedidos (admin)
 orderRouter.get('/list', getAllOrders);
+
+// Rota para buscar o PDF de um pedido
+orderRouter.get('/:id/pdf', getOrderPdf);
 
 // Rota para buscar um pedido pelo ID (admin)
 orderRouter.get('/:id', getOrderById);

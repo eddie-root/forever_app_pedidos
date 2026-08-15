@@ -30,10 +30,10 @@ const MainLayout = () => {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="font-semibold text-lg cursor-pointer" onClick={() => navigate('/')}>
-              Sucesso Representações
+              Forever Representações
             </h1>
             <span className="hidden md:block text-sm opacity-80 uppercase tracking-widest">
-              Cavaletti
+              Forever
             </span>
           </div>
 

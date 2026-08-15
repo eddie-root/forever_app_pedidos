@@ -1,0 +1,172 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  name          String
+  email         String   @unique
+  password      String
+  role          Role     @default(USER)
+  createdAt     DateTime @default(now())
+
+  orders        Order[]
+}
+
+model ClientPedido {
+  id             Int      @id @default(autoincrement())
+  rSocial        String
+  nFantasia      String
+  cnpj           String   @unique
+  inscEstadual   String?
+  suframa        String?  @default("")
+  dateFoundation String?  @default("")
+  address        String
+  bairro         String
+  city           String
+  county         String
+  cep            String
+  contact        String?  @default("")
+  cellPhone      String?  @default("")
+  phone          String?  @default("")
+  email          String?  @default("")
+  emailNfe       String?  @default("")
+  contactFinan   String?  @default("")
+  phoneFinan     String?  @default("")
+  emailFinan     String?  @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  orders         Order[]
+}
+
+model Tela {
+  id    Int    @id @default(autoincrement())
+  type  String // Ex: "V2", "Flip", "New Net"
+  code  String // Ex: "309", "601"
+  name  String // Ex: "Vermelho", "Flip Cinza"
+
+  @@unique([type, code])
+}
+
+model Product {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique
+  name          String
+  description   String
+  isNewProduct  Boolean? @default(false)
+  image         String?
+  categoryId    Int
+
+  category      Category @relation(fields: [categoryId], references: [id])
+
+  prices        PriceCombination[]
+}
+
+model Category {
+  id       Int      @id @default(autoincrement())
+  name     String
+
+  products Product[]
+}
+
+model Structure {
+  id    Int    @id @default(autoincrement())
+  name  String
+
+  prices PriceCombination[]
+}
+
+model Material {
+  id    Int    @id @default(autoincrement())
+  name  String
+
+  prices PriceCombination[]
+}
+
+model PriceCombination {
+  id           Int @id @default(autoincrement())
+
+  productId    Int
+  structureId  Int
+  materialId   Int
+
+  price        Int   // valor em centavos
+
+  product      Product   @relation(fields: [productId], references: [id])
+  structure    Structure @relation(fields: [structureId], references: [id])
+  material     Material  @relation(fields: [materialId], references: [id])
+
+  @@unique([productId, structureId, materialId])
+}
+
+model Order {
+  id                      Int          @id @default(autoincrement())
+
+  numberPedido            String?      @unique
+
+  userId                  Int
+  user                    User         @relation(fields: [userId], references: [id])
+
+  clientId                Int
+  client                  ClientPedido @relation(fields: [clientId], references: [id])
+
+  issueDate               DateTime     @default(now())
+  term                    String?
+  typeShipping            String?
+  carrying                String?
+  observations            String?
+
+  // 🔥 AGORA EM CENTAVOS
+  totalWithoutDiscounts   Int
+  totalWithDiscounts      Int
+
+  status                  String       @default("PRE_PEDIDO")
+
+  items                   OrderItem[]
+
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+}
+
+model OrderItem {
+  id                      Int     @id @default(autoincrement())
+
+  orderId                 Int
+  order                   Order   @relation(fields: [orderId], references: [id])
+
+  cod                     String
+  name                    String
+  description             String
+  colorTelas              String?
+  structureName           String
+  materialName            String
+
+  discount1               Float   @default(0)
+  discount2               Float   @default(0)
+  discount3               Float   @default(0)
+  discount4               Float   @default(0)
+
+  quantity                Int     @default(1)
+
+  // 🔥 TODOS EM CENTAVOS
+  priceList               Int
+  priceWithDiscount       Int
+  priceTotalWithoutDisc   Int
+  priceTotalWithDisc      Int
+
+  createdAt               DateTime @default(now())
+}
